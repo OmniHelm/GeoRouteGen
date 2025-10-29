@@ -1,0 +1,25 @@
+{
+  "name": "georoutegen",
+  "version": "1.0.0",
+  "description": "BGP Route CIDR Generator - Simple and Pragmatic",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "import-db": "tsx scripts/import-ipdb.ts",
+    "migrate": "tsx scripts/migrate-add-origin.ts",
+    "test-ip": "tsx src/utils/ip.ts"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.0.0",
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.11.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}

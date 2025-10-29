@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BGP 路由拓扑分析 - GeoRouteGen</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    :root {
+      --telecom-color: #ef4444;
+      --telecom-light: #fee2e2;
+      --unicom-color: #10b981;
+      --unicom-light: #d1fae5;
+      --mobile-color: #f59e0b;
+      --mobile-light: #fef3c7;
+    }
+
+    body {
+      background: linear-gradient(to bottom, #f8fafc 0%, #e2e8f0 100%);
+      min-height: 100vh;
+    }
+
+    .route-result-container {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+
+    /* ========== 头部样式 ========== */
+    .route-result-header {
+      text-align: center;
+      margin-bottom: 40px;
+      position: relative;
+    }
+
+    .back-link {
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--gray-700);
+      text-decoration: none;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 18px;
+      border-radius: 10px;
+      transition: all 0.3s;
+      background: white;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .back-link:hover {
+      background: white;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      transform: translateY(-50%) translateX(-4px);
+    }
+
+    .route-result-header h1 {
+      font-size: 36px;
+      font-weight: 800;
+      color: var(--gray-900);
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+
+    .route-result-header .subtitle {
+      font-size: 16px;
+      color: var(--gray-600);
+      font-weight: 500;
+    }
+
+    /* ========== 统计概览 ========== */
+    .stats-overview {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 32px;
+    }
+
+    .stat-card {
+      background: white;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      transition: all 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--primary), var(--primary-dark));
+    }
+
+    .stat-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+    }
+
+    .stat-card .stat-label {
+      font-size: 13px;
+      color: var(--gray-600);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .stat-card .stat-value {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--gray-900);
+      line-height: 1;
+    }
+
+    .stat-card .stat-unit {
+      font-size: 14px;
+      color: var(--gray-500);
+      margin-left: 4px;
+    }
+
+    /* ========== 搜索栏 ========== */
+    .search-bar {
+      background: white;
+      border-radius: 12px;
+      padding: 12px 20px;
+      margin-bottom: 32px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      border: 1px solid rgba(0,0,0,0.06);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .search-bar svg {
+      width: 20px;
+      height: 20px;
+      color: var(--gray-400);
+    }
+
+    .search-input {
+      flex: 1;
+      border: none;
+      outline: none;
+      font-size: 15px;
+      color: var(--gray-900);
+      background: transparent;
+    }
+
+    .search-input::placeholder {
+      color: var(--gray-400);
+    }
+
+    .clear-search {
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: none;
+      background: var(--gray-100);
+      color: var(--gray-600);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .clear-search:hover {
+      background: var(--gray-200);
+    }
+
+    /* ========== Tab 导航样式 ========== */
+    .origin-tabs {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 40px;
+      background: white;
+      padding: 8px;
+      border-radius: 16px;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      border: 1px solid rgba(0,0,0,0.06);
+    }
+
+    .origin-tab {
+      flex: 1;
+      padding: 14px 28px;
+      border: none;
+      background: transparent;
+      color: var(--gray-600);
+      font-weight: 600;
+      font-size: 15px;
+      cursor: pointer;
+      border-radius: 12px;
+      transition: all 0.3s;
+      position: relative;
+    }
+
+    .origin-tab:hover {
+      background: var(--gray-50);
+      color: var(--gray-900);
+    }
+
+    .origin-tab.active {
+      background: var(--primary);
+      color: white;
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+    }
+
+    .origin-tab .tab-code {
+      font-weight: 700;
+      font-size: 16px;
+    }
+
+    .origin-tab .tab-name {
+      font-size: 13px;
+      opacity: 0.7;
+      margin-left: 6px;
+    }
+
+    .origin-tab.active .tab-name {
+      opacity: 0.9;
+    }
+
+    /* ========== 运营商卡片网格 ========== */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 24px;
+      margin-bottom: 24px;
+      overflow-x: hidden;
+    }
+
+    .route-result-card {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      overflow: hidden;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      opacity: 0;
+      animation: fadeInUp 0.6s ease forwards;
+    }
+
+    .route-result-card:nth-child(1) { animation-delay: 0.1s; }
+    .route-result-card:nth-child(2) { animation-delay: 0.2s; }
+    .route-result-card:nth-child(3) { animation-delay: 0.3s; }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .route-result-card:hover {
+      box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+      transform: translateY(-8px);
+    }
+
+    .card-header {
+      padding: 24px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card-header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      opacity: 0.08;
+      z-index: 0;
+    }
+
+    .card-header-content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .isp-icon-wrapper {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+
+    .route-result-card.telecom .isp-icon-wrapper {
+      background: var(--telecom-light);
+    }
+
+    .route-result-card.unicom .isp-icon-wrapper {
+      background: var(--unicom-light);
+    }
+
+    .route-result-card.mobile .isp-icon-wrapper {
+      background: var(--mobile-light);
+    }
+
+    .card-stats {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      padding: 8px 18px;
+      background: rgba(255,255,255,0.95);
+      border-radius: 24px;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .card-stats .count {
+      font-size: 24px;
+      font-weight: 800;
+    }
+
+    /* 电信样式 */
+    .route-result-card.telecom .card-header::before {
+      background: linear-gradient(135deg, var(--telecom-color), #dc2626);
+    }
+
+    .route-result-card.telecom .card-header-content h2 {
+      color: var(--telecom-color);
+    }
+
+    .route-result-card.telecom .card-stats {
+      color: var(--telecom-color);
+    }
+
+    /* 联通样式 */
+    .route-result-card.unicom .card-header::before {
+      background: linear-gradient(135deg, var(--unicom-color), #059669);
+    }
+
+    .route-result-card.unicom .card-header-content h2 {
+      color: var(--unicom-color);
+    }
+
+    .route-result-card.unicom .card-stats {
+      color: var(--unicom-color);
+    }
+
+    /* 移动样式 */
+    .route-result-card.mobile .card-header::before {
+      background: linear-gradient(135deg, var(--mobile-color), #d97706);
+    }
+
+    .route-result-card.mobile .card-header-content h2 {
+      color: var(--mobile-color);
+    }
+
+    .route-result-card.mobile .card-stats {
+      color: var(--mobile-color);
+    }
+
+    .card-header h2 {
+      font-size: 20px;
+      font-weight: 700;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .isp-name-cn {
+      font-size: 20px;
+    }
+
+    .isp-name-en {
+      font-size: 12px;
+      font-weight: 500;
+      opacity: 0.6;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* ========== 表格样式 ========== */
+    .card-body {
+      padding: 0;
+      max-height: 500px;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    .card-body::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .card-body::-webkit-scrollbar-thumb {
+      background: var(--gray-300);
+      border-radius: 3px;
+    }
+
+    .card-body::-webkit-scrollbar-thumb:hover {
+      background: var(--gray-400);
+    }
+
+    .route-result-card table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .route-result-card thead {
+      position: sticky;
+      top: 0;
+      background: linear-gradient(to bottom, #f8fafc, #f1f5f9);
+      border-bottom: 2px solid #e2e8f0;
+      z-index: 10;
+    }
+
+    .route-result-card th {
+      padding: 16px 28px;
+      text-align: left;
+      font-weight: 700;
+      color: var(--gray-700);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.2s;
+    }
+
+    .route-result-card th:hover {
+      background: rgba(0,0,0,0.02);
+    }
+
+    .route-result-card th.sortable {
+      position: relative;
+    }
+
+    .route-result-card th.sortable::after {
+      content: '⇅';
+      margin-left: 6px;
+      opacity: 0.3;
+    }
+
+    .route-result-card th.sorted-asc::after {
+      content: '↑';
+      opacity: 0.8;
+    }
+
+    .route-result-card th.sorted-desc::after {
+      content: '↓';
+      opacity: 0.8;
+    }
+
+    .route-result-card td {
+      padding: 18px 28px;
+      border-bottom: 1px solid #f1f5f9;
+      color: var(--gray-700);
+      font-size: 15px;
+    }
+
+    .route-result-card tbody tr {
+      transition: all 0.2s;
+    }
+
+    .route-result-card tbody tr:nth-child(even) {
+      background: #fafbfc;
+    }
+
+    .route-result-card tbody tr:hover {
+      background: #f0f7ff;
+    }
+
+    .route-result-card tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .route-name {
+      font-weight: 600;
+      color: var(--gray-900);
+      padding: 6px 14px;
+      background: linear-gradient(135deg, #eff6ff, #dbeafe);
+      border-radius: 8px;
+      display: inline-block;
+      font-size: 13px;
+      border: 1px solid rgba(59, 130, 246, 0.1);
+    }
+
+    /* ========== 空状态样式 ========== */
+    .empty-hint {
+      text-align: center;
+      color: var(--gray-400);
+      padding: 80px 20px;
+      font-size: 14px;
+    }
+
+    .empty-icon {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 20px;
+      opacity: 0.3;
+    }
+
+    .empty-hint p {
+      margin: 8px 0 0;
+      font-weight: 500;
+    }
+
+    .empty-hint small {
+      color: var(--gray-400);
+      font-size: 12px;
+    }
+
+    /* ========== 加载状态 ========== */
+    .skeleton {
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: loading 1.5s infinite;
+      border-radius: 8px;
+    }
+
+    @keyframes loading {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    .skeleton-stat {
+      height: 80px;
+      margin-bottom: 20px;
+    }
+
+    .skeleton-card {
+      height: 400px;
+      margin-bottom: 24px;
+    }
+
+    /* ========== 响应式设计 ========== */
+    @media (max-width: 1200px) {
+      .cards-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .route-result-container {
+        padding: 20px 16px;
+      }
+
+      .route-result-header h1 {
+        font-size: 28px;
+      }
+
+      .back-link {
+        position: static;
+        transform: none;
+        margin-bottom: 20px;
+      }
+
+      .route-result-header {
+        text-align: left;
+      }
+
+      .origin-tabs {
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .cards-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+      }
+
+      .route-result-card th,
+      .route-result-card td {
+        padding: 14px 20px;
+        font-size: 14px;
+      }
+
+      .stats-overview {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ========== 隐藏类 ========== */
+    .hidden {
+      display: none !important;
+    }
+
+    .no-results {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--gray-500);
+    }
+  </style>
+</head>
+<body>
+  <div class="route-result-container">
+    <!-- 头部 -->
+    <div class="route-result-header">
+      <a href="/admin-login.html" class="back-link">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>管理员入口</span>
+      </a>
+      <h1>BGP 路由拓扑分析</h1>
+      <p class="subtitle">实时查看各节点到中国大陆的最优路由路径</p>
+    </div>
+
+    <!-- 统计概览 -->
+    <div class="stats-overview" id="statsOverview">
+      <div class="stat-card">
+        <div class="stat-label">总路由数</div>
+        <div class="stat-value">
+          <span id="totalRoutes">0</span>
+          <span class="stat-unit">条</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">覆盖省份</div>
+        <div class="stat-value">
+          <span id="totalProvinces">0</span>
+          <span class="stat-unit">个</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">当前起点</div>
+        <div class="stat-value">
+          <span id="currentOriginText">HKG</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 搜索栏 -->
+    <div class="search-bar">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      </svg>
+      <input
+        type="text"
+        class="search-input"
+        id="searchInput"
+        placeholder="搜索省份、城市或线路类型..."
+      >
+      <button class="clear-search hidden" id="clearSearch">清除</button>
+    </div>
+
+    <!-- Tab 导航 -->
+    <div class="origin-tabs">
+      <button class="origin-tab active" data-origin="HKG" onclick="switchOrigin('HKG')">
+        <span class="tab-code">HKG</span>
+        <span class="tab-name">香港</span>
+      </button>
+      <button class="origin-tab" data-origin="JPN" onclick="switchOrigin('JPN')">
+        <span class="tab-code">JPN</span>
+        <span class="tab-name">日本</span>
+      </button>
+      <button class="origin-tab" data-origin="SIN" onclick="switchOrigin('SIN')">
+        <span class="tab-code">SIN</span>
+        <span class="tab-name">新加坡</span>
+      </button>
+    </div>
+
+    <!-- 运营商卡片网格 -->
+    <div class="cards-grid">
+      <!-- 电信卡片 -->
+      <div class="route-result-card telecom">
+        <div class="card-header">
+          <div class="card-header-content">
+            <div class="isp-icon-wrapper">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="var(--telecom-color)" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="10"/>
+              </svg>
+            </div>
+            <h2>
+              <span class="isp-name-cn">中国电信</span>
+              <span class="isp-name-en">China Telecom</span>
+            </h2>
+          </div>
+          <div class="card-stats">
+            <span class="count" id="telecom-count">0</span>
+            <span>条</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <table id="telecom-table">
+            <thead>
+              <tr>
+                <th class="sortable" data-column="province">省份/城市</th>
+                <th class="sortable" data-column="route">线路类型</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <div class="empty-hint hidden" data-table="telecom">
+            <svg class="empty-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+            </svg>
+            <p>暂无数据</p>
+            <small>当前起点暂无电信线路配置</small>
+          </div>
+        </div>
+      </div>
+
+      <!-- 联通卡片 -->
+      <div class="route-result-card unicom">
+        <div class="card-header">
+          <div class="card-header-content">
+            <div class="isp-icon-wrapper">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="var(--unicom-color)" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="10"/>
+              </svg>
+            </div>
+            <h2>
+              <span class="isp-name-cn">中国联通</span>
+              <span class="isp-name-en">China Unicom</span>
+            </h2>
+          </div>
+          <div class="card-stats">
+            <span class="count" id="unicom-count">0</span>
+            <span>条</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <table id="unicom-table">
+            <thead>
+              <tr>
+                <th class="sortable" data-column="province">省份/城市</th>
+                <th class="sortable" data-column="route">线路类型</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <div class="empty-hint hidden" data-table="unicom">
+            <svg class="empty-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+            </svg>
+            <p>暂无数据</p>
+            <small>当前起点暂无联通线路配置</small>
+          </div>
+        </div>
+      </div>
+
+      <!-- 移动卡片 -->
+      <div class="route-result-card mobile">
+        <div class="card-header">
+          <div class="card-header-content">
+            <div class="isp-icon-wrapper">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="var(--mobile-color)" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="10"/>
+              </svg>
+            </div>
+            <h2>
+              <span class="isp-name-cn">中国移动</span>
+              <span class="isp-name-en">China Mobile</span>
+            </h2>
+          </div>
+          <div class="card-stats">
+            <span class="count" id="mobile-count">0</span>
+            <span>条</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <table id="mobile-table">
+            <thead>
+              <tr>
+                <th class="sortable" data-column="province">省份/城市</th>
+                <th class="sortable" data-column="route">线路类型</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <div class="empty-hint hidden" data-table="mobile">
+            <svg class="empty-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+            </svg>
+            <p>暂无数据</p>
+            <small>当前起点暂无移动线路配置</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/common.js"></script>
+  <script src="/route-result.js"></script>
+</body>
+</html>
