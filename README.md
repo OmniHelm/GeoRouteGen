@@ -224,11 +224,42 @@ CREATE INDEX idx_minip_maxip ON ip_records(minip, maxip);
 
 ## Docker 部署（推荐）
 
-### 方式 A：使用安装脚本（推荐）
+### 方式 A：一键部署脚本（最快，推荐）
 
-最简单的部署方式，一键完成所有配置：
+**适用场景：** 生产环境快速部署，直接使用预构建镜像。
 
 ```bash
+# 下载部署脚本
+curl -fsSL https://raw.githubusercontent.com/OmniHelm/GeoRouteGen/main/deploy.sh -o deploy.sh
+
+# 添加执行权限
+chmod +x deploy.sh
+
+# 运行一键部署
+./deploy.sh
+```
+
+脚本会自动完成：
+1. ✅ 检查 Docker 和 docker-compose 是否安装
+2. ✅ 从 GitHub Container Registry 拉取最新镜像
+3. ✅ 引导你设置管理员密码
+4. ✅ 创建配置文件和数据目录
+5. ✅ 启动服务
+
+**整个过程只需 2-3 分钟！**
+
+---
+
+### 方式 B：从源码构建部署
+
+**适用场景：** 开发环境或需要自定义构建。
+
+```bash
+# 克隆仓库
+git clone https://github.com/OmniHelm/GeoRouteGen.git
+cd GeoRouteGen
+
+# 运行安装脚本
 chmod +x setup.sh
 ./setup.sh
 ```
@@ -240,7 +271,9 @@ chmod +x setup.sh
 4. 构建 Docker 镜像
 5. 启动服务
 
-### 方式 B：手动部署
+---
+
+### 方式 C：手动部署
 
 如果你想更精细地控制部署过程：
 
