@@ -18,6 +18,7 @@ let selectedRegionsSet = new Set(); // O(1) 查找优化
 let expandedProvinces = new Set();
 let currentGeoRegion = '全部'; // 当前选择的地理分区
 let selectedGroupIds = new Set(); // 批量删除选中的分组ID
+let expandedGroupRegions = new Set(); // 记录哪些分组的地区列表是展开的
 
 // 生成地区的唯一键
 function getRegionKey(province, city) {
@@ -129,48 +130,85 @@ async function onOriginChange() {
 
 function renderGroups() {
   const container = document.getElementById('groupList');
-  container.innerHTML = groups.map(group => `
-    <div class="group-card ${selectedGroupIds.has(group.id) ? 'selected' : ''}">
-      <div class="group-header">
-        <div class="group-checkbox">
-          <input type="checkbox"
-                 ${selectedGroupIds.has(group.id) ? 'checked' : ''}
-                 onchange="toggleGroupSelection('${group.id}')"
-                 onclick="event.stopPropagation()">
-        </div>
-        <div class="group-info">
-          <h3>
-            <span class="origin-badge">${escapeHtml(group.origin || 'HKG')}</span>
-            ${escapeHtml(group.name)}
-          </h3>
-          <div class="isp">ISP: ${group.isp ? translateISP(escapeHtml(group.isp)) : '所有ISP'}</div>
-          <div class="region-tags">
-            ${group.regions.length === 0
-              ? '<span class="empty-regions">未选择地区</span>'
-              : group.regions.map(r => `
-                  <span class="tag">${translateProvince(r.province)} - ${translateCity(r.city)}</span>
-                `).join('')
-            }
+  const REGION_COLLAPSE_THRESHOLD = 20; // 超过20个地区时折叠
+
+  container.innerHTML = groups.map(group => {
+    const totalRegions = group.regions.length;
+    const shouldCollapse = totalRegions > REGION_COLLAPSE_THRESHOLD;
+    const isExpanded = expandedGroupRegions.has(group.id);
+
+    // 决定显示哪些地区
+    const displayRegions = (shouldCollapse && !isExpanded)
+      ? group.regions.slice(0, REGION_COLLAPSE_THRESHOLD)
+      : group.regions;
+
+    // 渲染地区标签
+    let regionTagsHTML = '';
+    if (totalRegions === 0) {
+      regionTagsHTML = '<span class="empty-regions">未选择地区</span>';
+    } else {
+      regionTagsHTML = displayRegions.map(r => `
+        <span class="tag">${translateProvince(r.province)} - ${translateCity(r.city)}</span>
+      `).join('');
+
+      // 如果需要折叠，添加展开/收起按钮
+      if (shouldCollapse) {
+        const hiddenCount = totalRegions - REGION_COLLAPSE_THRESHOLD;
+        regionTagsHTML += `
+          <span class="tag tag-toggle" onclick="toggleGroupRegions('${group.id}')">
+            ${isExpanded ? '收起 ▲' : `+${hiddenCount} 更多 ▼`}
+          </span>
+        `;
+      }
+    }
+
+    return `
+      <div class="group-card ${selectedGroupIds.has(group.id) ? 'selected' : ''}">
+        <div class="group-header">
+          <div class="group-checkbox">
+            <input type="checkbox"
+                   ${selectedGroupIds.has(group.id) ? 'checked' : ''}
+                   onchange="toggleGroupSelection('${group.id}')"
+                   onclick="event.stopPropagation()">
+          </div>
+          <div class="group-info">
+            <h3>
+              <span class="origin-badge">${escapeHtml(group.origin || 'HKG')}</span>
+              ${escapeHtml(group.name)}
+            </h3>
+            <div class="isp">ISP: ${group.isp ? translateISP(escapeHtml(group.isp)) : '所有ISP'}</div>
+            <div class="region-tags">
+              ${regionTagsHTML}
+            </div>
+          </div>
+          <div class="group-actions">
+            <button class="btn btn-sm btn-download" onclick="downloadGroup('${group.id}')">
+              下载
+            </button>
+            <button class="btn btn-sm btn-edit" onclick="editGroup('${group.id}')">
+              编辑
+            </button>
+            <button class="btn btn-sm btn-delete" onclick="deleteGroup('${group.id}')">
+              删除
+            </button>
           </div>
         </div>
-        <div class="group-actions">
-          <button class="btn btn-sm btn-download" onclick="downloadGroup('${group.id}')">
-            下载
-          </button>
-          <button class="btn btn-sm btn-edit" onclick="editGroup('${group.id}')">
-            编辑
-          </button>
-          <button class="btn btn-sm btn-delete" onclick="deleteGroup('${group.id}')">
-            删除
-          </button>
+        <div class="group-footer">
+          创建于: ${new Date(group.created_at).toLocaleString('zh-CN')}
         </div>
       </div>
-      <div class="group-footer">
-        创建于: ${new Date(group.created_at).toLocaleString('zh-CN')}
-      </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
   updateBatchBar();
+}
+
+function toggleGroupRegions(groupId) {
+  if (expandedGroupRegions.has(groupId)) {
+    expandedGroupRegions.delete(groupId);
+  } else {
+    expandedGroupRegions.add(groupId);
+  }
+  renderGroups();
 }
 
 // ==================== Modal ====================

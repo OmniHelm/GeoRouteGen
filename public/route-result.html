@@ -307,16 +307,34 @@
       font-size: 20px;
     }
 
+    .isp-icon-wrapper img {
+      width: 28px;
+      height: 28px;
+      object-fit: contain;
+    }
+
     .route-result-card.telecom .isp-icon-wrapper {
       background: var(--telecom-light);
+    }
+
+    .route-result-card.telecom .isp-icon-wrapper img {
+      color: var(--telecom-color);
     }
 
     .route-result-card.unicom .isp-icon-wrapper {
       background: var(--unicom-light);
     }
 
+    .route-result-card.unicom .isp-icon-wrapper img {
+      color: var(--unicom-color);
+    }
+
     .route-result-card.mobile .isp-icon-wrapper {
       background: var(--mobile-light);
+    }
+
+    .route-result-card.mobile .isp-icon-wrapper img {
+      color: var(--mobile-color);
     }
 
     .card-stats {
@@ -844,9 +862,7 @@
         <div class="card-header">
           <div class="card-header-content">
             <div class="isp-icon-wrapper">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="var(--telecom-color)" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="12" cy="12" r="10"/>
-              </svg>
+              <img src="/icons/telecom.svg" alt="中国电信" />
             </div>
             <h2>
               <span class="isp-name-cn">中国电信</span>
@@ -883,9 +899,7 @@
         <div class="card-header">
           <div class="card-header-content">
             <div class="isp-icon-wrapper">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="var(--unicom-color)" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="12" cy="12" r="10"/>
-              </svg>
+              <img src="/icons/unicom.svg" alt="中国联通" />
             </div>
             <h2>
               <span class="isp-name-cn">中国联通</span>
@@ -922,9 +936,7 @@
         <div class="card-header">
           <div class="card-header-content">
             <div class="isp-icon-wrapper">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="var(--mobile-color)" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="12" cy="12" r="10"/>
-              </svg>
+              <img src="/icons/mobile.svg" alt="中国移动" />
             </div>
             <h2>
               <span class="isp-name-cn">中国移动</span>

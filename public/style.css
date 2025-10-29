@@ -411,6 +411,27 @@ main {
   border: 1px solid #bfdbfe;
 }
 
+/* 展开/收起按钮标签 */
+.tag-toggle {
+  background: var(--gray-100);
+  color: var(--gray-700);
+  border-color: var(--gray-300);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.tag-toggle:hover {
+  background: var(--gray-200);
+  border-color: var(--gray-400);
+  color: var(--gray-800);
+  transform: translateY(-1px);
+}
+
+.tag-toggle:active {
+  transform: translateY(0);
+}
+
 .empty-regions {
   color: var(--gray-400);
   font-size: 14px;
