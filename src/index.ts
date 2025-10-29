@@ -18,7 +18,7 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
 // 中间件
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '..', '..', 'public')));
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // 请求日志
 app.use((req, res, next) => {
@@ -181,10 +181,10 @@ app.get('/api/route-result/:origin', (req, res) => {
     const allGroups = db.getAllGroups();
     const groupsForOrigin = allGroups.filter(g => g.origin === origin);
 
-    // 构建省份 -> 分组名称的映射
-    // 注意：我们只显示省级分组（city为空）
+    // 构建路由信息：province 和 city 分离
     interface RouteInfo {
       province: string;
+      city: string | null;
       routeName: string;
       isp: string;
     }
@@ -194,13 +194,9 @@ app.get('/api/route-result/:origin', (req, res) => {
     for (const group of groupsForOrigin) {
       // 处理所有地区（省级 + 市级）
       for (const region of group.regions) {
-        // 如果是市级数据，显示为"省份 - 城市"；否则只显示省份
-        const displayName = region.city
-          ? `${region.province} - ${region.city}`
-          : region.province;
-
         routeInfos.push({
-          province: displayName,
+          province: region.province,
+          city: region.city || null,
           routeName: group.name,
           isp: group.isp
         });
@@ -209,14 +205,18 @@ app.get('/api/route-result/:origin', (req, res) => {
 
     // 按 ISP 分类
     const result = {
-      telecom: [] as Array<{ province: string; route_name: string }>,
-      unicom: [] as Array<{ province: string; route_name: string }>,
-      mobile: [] as Array<{ province: string; route_name: string }>
+      telecom: [] as Array<{ province: string; city: string | null; route_name: string }>,
+      unicom: [] as Array<{ province: string; city: string | null; route_name: string }>,
+      mobile: [] as Array<{ province: string; city: string | null; route_name: string }>
     };
 
     for (const info of routeInfos) {
       const isp = info.isp.toLowerCase();
-      const item = { province: info.province, route_name: info.routeName };
+      const item = {
+        province: info.province,
+        city: info.city,
+        route_name: info.routeName
+      };
 
       if (isp.includes('telecom')) {
         result.telecom.push(item);
@@ -266,7 +266,7 @@ app.get('/health', (req, res) => {
 
 // ==================== Startup ====================
 
-const dbPath = process.env.DB_PATH || path.join(__dirname, '..', '..', 'georoute.db');
+const dbPath = process.env.DB_PATH || path.join(__dirname, '..', 'georoute.db');
 if (!fs.existsSync(dbPath)) {
   console.error('\n❌ 错误：数据库文件不存在');
   console.error(`   路径: ${dbPath}`);

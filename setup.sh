@@ -23,6 +23,124 @@ DATA_DIR="/var/lib/georoutegen"
 DB_FILE="$DATA_DIR/georoute.db"
 
 # =============================================================================
+# 步骤 0: 检查并安装 Docker
+# =============================================================================
+
+echo "🐳 步骤 0/4: 检查 Docker 环境"
+echo "-----------------------------------"
+
+# 检查 Docker 是否已安装
+if command -v docker &> /dev/null; then
+    echo -e "${GREEN}✓ Docker 已安装${NC}"
+    docker --version
+else
+    echo -e "${YELLOW}⚠ Docker 未安装，开始自动安装...${NC}"
+    echo ""
+
+    # 检测操作系统类型
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        OS=$ID
+    else
+        echo -e "${RED}✗ 无法检测操作系统类型${NC}"
+        echo "请手动安装 Docker: https://docs.docker.com/engine/install/"
+        exit 1
+    fi
+
+    echo "检测到系统: $OS"
+    echo ""
+
+    case $OS in
+        ubuntu|debian)
+            echo "使用 apt 安装 Docker..."
+
+            # 更新包索引
+            sudo apt-get update
+
+            # 安装依赖
+            sudo apt-get install -y \
+                ca-certificates \
+                curl \
+                gnupg \
+                lsb-release
+
+            # 添加 Docker 官方 GPG key
+            sudo mkdir -p /etc/apt/keyrings
+            curl -fsSL https://download.docker.com/linux/$OS/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+            # 设置仓库
+            echo \
+              "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/$OS \
+              $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+            # 安装 Docker
+            sudo apt-get update
+            sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+            ;;
+
+        centos|rhel|fedora)
+            echo "使用 yum/dnf 安装 Docker..."
+
+            # 安装依赖
+            sudo yum install -y yum-utils
+
+            # 添加 Docker 仓库
+            sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+
+            # 安装 Docker
+            sudo yum install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+            # 启动 Docker
+            sudo systemctl start docker
+            sudo systemctl enable docker
+            ;;
+
+        *)
+            echo -e "${RED}✗ 不支持的操作系统: $OS${NC}"
+            echo ""
+            echo "请手动安装 Docker，参考官方文档:"
+            echo "  https://docs.docker.com/engine/install/"
+            echo ""
+            echo "安装完成后，重新运行本脚本。"
+            exit 1
+            ;;
+    esac
+
+    # 验证安装
+    if command -v docker &> /dev/null; then
+        echo ""
+        echo -e "${GREEN}✓ Docker 安装成功${NC}"
+        docker --version
+
+        # 将当前用户添加到 docker 组（可选，避免每次使用 sudo）
+        echo ""
+        echo -e "${YELLOW}提示: 将当前用户添加到 docker 组...${NC}"
+        sudo usermod -aG docker $USER
+        echo "  完成后需要重新登录才能生效"
+        echo "  或者使用 'newgrp docker' 立即生效"
+    else
+        echo -e "${RED}✗ Docker 安装失败${NC}"
+        exit 1
+    fi
+fi
+
+# 检查 docker-compose 是否可用
+echo ""
+if docker compose version &> /dev/null; then
+    echo -e "${GREEN}✓ docker compose 可用 (内置插件)${NC}"
+    DOCKER_COMPOSE_CMD="docker compose"
+elif command -v docker-compose &> /dev/null; then
+    echo -e "${GREEN}✓ docker-compose 可用 (独立命令)${NC}"
+    DOCKER_COMPOSE_CMD="docker-compose"
+else
+    echo -e "${RED}✗ docker compose 不可用${NC}"
+    echo "请安装 docker-compose 或 docker compose 插件"
+    exit 1
+fi
+
+echo ""
+
+# =============================================================================
 # 步骤 1: 检查并创建数据目录
 # =============================================================================
 
@@ -148,7 +266,7 @@ echo "🚀 步骤 4/4: 构建并启动服务"
 echo "-----------------------------------"
 
 echo "正在构建 Docker 镜像..."
-if docker-compose build; then
+if $DOCKER_COMPOSE_CMD build; then
     echo -e "${GREEN}✓ 镜像构建成功${NC}"
 else
     echo -e "${RED}✗ 镜像构建失败${NC}"
@@ -157,7 +275,7 @@ fi
 
 echo ""
 echo "正在启动服务..."
-if docker-compose up -d; then
+if $DOCKER_COMPOSE_CMD up -d; then
     echo -e "${GREEN}✓ 服务启动成功${NC}"
 else
     echo -e "${RED}✗ 服务启动失败${NC}"
@@ -181,10 +299,10 @@ echo "   - 数据目录: $DATA_DIR"
 echo "   - 配置文件: .env"
 echo ""
 echo "📝 常用命令："
-echo "   - 查看日志: docker-compose logs -f"
-echo "   - 查看状态: docker-compose ps"
-echo "   - 重启服务: docker-compose restart"
-echo "   - 停止服务: docker-compose down"
+echo "   - 查看日志: $DOCKER_COMPOSE_CMD logs -f"
+echo "   - 查看状态: $DOCKER_COMPOSE_CMD ps"
+echo "   - 重启服务: $DOCKER_COMPOSE_CMD restart"
+echo "   - 停止服务: $DOCKER_COMPOSE_CMD down"
 echo ""
 echo "⚠️  安全提示："
 echo "   请确保已修改 .env 文件中的 ADMIN_PASSWORD！"

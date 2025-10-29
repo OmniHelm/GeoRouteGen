@@ -14,7 +14,7 @@ import { rangeToCIDRs, numberToIP } from './utils/ip';
 import { randomUUID } from 'crypto';
 
 // 数据库路径（支持环境变量 DB_PATH，向后兼容）
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', '..', 'georoute.db');
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'georoute.db');
 
 let db: Database.Database | null = null;
 
@@ -148,16 +148,21 @@ export function getAvailableRegions(origin?: string): Region[] {
 
 /**
  * 获取可用的ISP列表（中国）
- * 过滤掉无意义的ISP（如"-"、空字符串等）
+ * 仅返回三大运营商：中国电信、中国移动、中国联通
  */
 export function getAvailableISPs(): string[] {
   const result = getDB().prepare(`
     SELECT DISTINCT isp, COUNT(*) as count
     FROM ip_records
-    WHERE country = 'China' AND isp != '' AND isp != '-'
+    WHERE country = 'China'
+      AND isp IN ('China Telecom', 'China Mobile', 'China Unicom')
     GROUP BY isp
-    HAVING count > 100
-    ORDER BY count DESC
+    ORDER BY
+      CASE
+        WHEN isp = 'China Telecom' THEN 1
+        WHEN isp = 'China Mobile' THEN 2
+        WHEN isp = 'China Unicom' THEN 3
+      END
   `).all() as Array<{ isp: string; count: number }>;
 
   return result.map(r => r.isp);

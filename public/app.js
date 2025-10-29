@@ -17,6 +17,7 @@ let selectedRegions = [];
 let selectedRegionsSet = new Set(); // O(1) 查找优化
 let expandedProvinces = new Set();
 let currentGeoRegion = '全部'; // 当前选择的地理分区
+let selectedGroupIds = new Set(); // 批量删除选中的分组ID
 
 // 生成地区的唯一键
 function getRegionKey(province, city) {
@@ -129,8 +130,14 @@ async function onOriginChange() {
 function renderGroups() {
   const container = document.getElementById('groupList');
   container.innerHTML = groups.map(group => `
-    <div class="group-card">
+    <div class="group-card ${selectedGroupIds.has(group.id) ? 'selected' : ''}">
       <div class="group-header">
+        <div class="group-checkbox">
+          <input type="checkbox"
+                 ${selectedGroupIds.has(group.id) ? 'checked' : ''}
+                 onchange="toggleGroupSelection('${group.id}')"
+                 onclick="event.stopPropagation()">
+        </div>
         <div class="group-info">
           <h3>
             <span class="origin-badge">${escapeHtml(group.origin || 'HKG')}</span>
@@ -163,6 +170,7 @@ function renderGroups() {
       </div>
     </div>
   `).join('');
+  updateBatchBar();
 }
 
 // ==================== Modal ====================
@@ -529,24 +537,6 @@ function removeSelectedRegion(province, city) {
 
 // ==================== Quick Actions ====================
 
-function expandAll() {
-  // 展开所有省份
-  const availableRegions = regions.filter(r =>
-    r.assignedTo === null || (editingGroup && r.assignedTo === editingGroup.id)
-  );
-
-  const provinces = [...new Set(availableRegions.map(r => r.province))];
-  provinces.forEach(p => expandedProvinces.add(p));
-
-  renderRegionList();
-}
-
-function collapseAll() {
-  // 收起所有省份
-  expandedProvinces.clear();
-  renderRegionList();
-}
-
 function clearSelection() {
   // 清空所有选择
   selectedRegions = [];
@@ -579,6 +569,138 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
+// ==================== Batch Selection ====================
+
+function toggleGroupSelection(id) {
+  if (selectedGroupIds.has(id)) {
+    selectedGroupIds.delete(id);
+  } else {
+    selectedGroupIds.add(id);
+  }
+  renderGroups();
+}
+
+function toggleSelectAll() {
+  const checkbox = document.getElementById('selectAllCheckbox');
+  if (checkbox.checked) {
+    // 全选
+    for (const group of groups) {
+      selectedGroupIds.add(group.id);
+    }
+  } else {
+    // 取消全选
+    selectedGroupIds.clear();
+  }
+  renderGroups();
+}
+
+function clearBatchSelection() {
+  selectedGroupIds.clear();
+  renderGroups();
+}
+
+function updateBatchBar() {
+  const batchBar = document.getElementById('batchBar');
+  const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+  const selectedCountText = document.getElementById('selectedCountText');
+
+  const count = selectedGroupIds.size;
+
+  if (count > 0) {
+    batchBar.style.display = 'block';
+    selectedCountText.textContent = `已选择 ${count} 个分组`;
+    selectAllCheckbox.checked = count === groups.length;
+    selectAllCheckbox.indeterminate = count > 0 && count < groups.length;
+  } else {
+    batchBar.style.display = 'none';
+    selectAllCheckbox.checked = false;
+    selectAllCheckbox.indeterminate = false;
+  }
+}
+
+async function deleteSelectedGroups() {
+  const ids = Array.from(selectedGroupIds);
+  if (ids.length === 0) return;
+
+  const groupNames = ids.map(id => {
+    const group = groups.find(g => g.id === id);
+    return group ? group.name : id;
+  }).join('、');
+
+  if (!confirm(`确定删除以下 ${ids.length} 个分组吗？\n\n${groupNames}\n\n此操作不可撤销！`)) {
+    return;
+  }
+
+  // 显示进度
+  const batchBar = document.getElementById('batchBar');
+  const originalHTML = batchBar.innerHTML;
+
+  let successCount = 0;
+  let failedGroups = [];
+
+  for (let i = 0; i < ids.length; i++) {
+    const id = ids[i];
+    const group = groups.find(g => g.id === id);
+    const groupName = group ? group.name : id;
+
+    // 更新进度显示
+    batchBar.innerHTML = `
+      <div class="batch-bar-content">
+        <span style="font-weight: 600;">正在删除: ${groupName} (${i + 1}/${ids.length})</span>
+      </div>
+    `;
+
+    try {
+      await api(`/groups/${id}`, { method: 'DELETE' });
+      successCount++;
+
+      // 立即从数组中移除（优化：不重新加载整个列表）
+      const index = groups.findIndex(g => g.id === id);
+      if (index >= 0) {
+        groups.splice(index, 1);
+      }
+      selectedGroupIds.delete(id);
+    } catch (err) {
+      console.error(`删除分组 ${groupName} 失败:`, err);
+      failedGroups.push({ name: groupName, error: err.message });
+      break; // 遇到错误立即停止
+    }
+  }
+
+  // 恢复批量操作栏
+  batchBar.innerHTML = originalHTML;
+
+  // 更新统计信息
+  if (stats) {
+    stats.groupCount = groups.length;
+    document.getElementById('stats').innerHTML = `
+      <p>IP记录: ${stats.totalRecords.toLocaleString()}</p>
+      <p>线路分组数: ${stats.groupCount}</p>
+    `;
+  }
+
+  // 重新渲染列表
+  renderGroups();
+
+  // 显示结果
+  if (failedGroups.length === 0) {
+    alert(`成功删除 ${successCount} 个分组！`);
+  } else {
+    const failedNames = failedGroups.map(f => `${f.name}: ${f.error}`).join('\n');
+    alert(`删除了 ${successCount} 个分组，但有 ${failedGroups.length} 个失败：\n\n${failedNames}`);
+  }
+
+  // 更新生成按钮显示状态
+  const generateBtn = document.getElementById('generateAllBtn');
+  generateBtn.style.display = groups.length > 0 ? 'inline-block' : 'none';
+
+  // 如果没有分组了，显示空状态
+  if (groups.length === 0) {
+    document.getElementById('empty').style.display = 'block';
+    document.getElementById('groupList').innerHTML = '';
+  }
+}
+
 // ==================== Actions ====================
 
 async function deleteGroup(id) {
@@ -586,7 +708,37 @@ async function deleteGroup(id) {
 
   try {
     await api(`/groups/${id}`, { method: 'DELETE' });
-    await loadData();
+
+    // 优化：直接从数组中移除，不重新加载
+    const index = groups.findIndex(g => g.id === id);
+    if (index >= 0) {
+      groups.splice(index, 1);
+    }
+
+    // 从选中列表中移除（如果存在）
+    selectedGroupIds.delete(id);
+
+    // 更新统计信息
+    if (stats) {
+      stats.groupCount = groups.length;
+      document.getElementById('stats').innerHTML = `
+        <p>IP记录: ${stats.totalRecords.toLocaleString()}</p>
+        <p>线路分组数: ${stats.groupCount}</p>
+      `;
+    }
+
+    // 更新生成按钮显示状态
+    const generateBtn = document.getElementById('generateAllBtn');
+    generateBtn.style.display = groups.length > 0 ? 'inline-block' : 'none';
+
+    // 如果没有分组了，显示空状态
+    if (groups.length === 0) {
+      document.getElementById('empty').style.display = 'block';
+      document.getElementById('groupList').innerHTML = '';
+    } else {
+      // 重新渲染列表
+      renderGroups();
+    }
   } catch (err) {
     alert(`删除失败：${err.message}`);
   }

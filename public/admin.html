@@ -79,6 +79,22 @@
       <small>点击「新建线路分组」开始创建</small>
     </div>
 
+    <!-- 批量操作栏 -->
+    <div id="batchBar" class="batch-bar" style="display:none">
+      <div class="batch-bar-content">
+        <div class="batch-bar-left">
+          <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()">
+          <span id="selectedCountText">已选择 0 个分组</span>
+        </div>
+        <div class="batch-bar-right">
+          <button class="btn btn-sm" onclick="clearBatchSelection()">取消选择</button>
+          <button class="btn btn-sm btn-delete" onclick="deleteSelectedGroups()">
+            批量删除
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- 分组列表 -->
     <div id="groupList" class="group-list"></div>
   </main>
@@ -127,12 +143,6 @@
           <div class="region-selector-container">
             <!-- 左侧：选择区 -->
             <div class="region-selector-left">
-              <div class="region-toolbar">
-                <button type="button" class="btn btn-sm" onclick="expandAll()">展开全部</button>
-                <button type="button" class="btn btn-sm" onclick="collapseAll()">收起全部</button>
-                <button type="button" class="btn btn-sm" onclick="clearSelection()">清空选择</button>
-              </div>
-
               <!-- 地理分区过滤 -->
               <div class="geo-region-tabs" id="geoRegionTabs"></div>
 

@@ -266,6 +266,48 @@ main {
   font-size: 14px;
 }
 
+/* ==================== 批量操作栏 ==================== */
+
+.batch-bar {
+  background: #fffbeb;
+  border: 1px solid #fbbf24;
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.batch-bar-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.batch-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.batch-bar-left input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--primary);
+}
+
+.batch-bar-left span {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gray-700);
+}
+
+.batch-bar-right {
+  display: flex;
+  gap: 8px;
+}
+
 /* ==================== 分组卡片 ==================== */
 
 .group-list {
@@ -279,6 +321,13 @@ main {
   padding: 24px;
   box-shadow: var(--shadow);
   border: 1px solid var(--gray-200);
+  transition: all 0.2s;
+}
+
+.group-card.selected {
+  background: #eff6ff;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .group-header {
@@ -286,7 +335,20 @@ main {
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 20px;
-  gap: 24px;
+  gap: 16px;
+}
+
+.group-checkbox {
+  display: flex;
+  align-items: center;
+  padding-top: 4px;
+}
+
+.group-checkbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--primary);
 }
 
 .group-info {
