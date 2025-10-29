@@ -14,7 +14,7 @@ import { rangeToCIDRs, numberToIP } from './utils/ip';
 import { randomUUID } from 'crypto';
 
 // 数据库路径（支持环境变量 DB_PATH，向后兼容）
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'georoute.db');
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', '..', 'georoute.db');
 
 let db: Database.Database | null = null;
 

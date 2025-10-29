@@ -18,7 +18,7 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
 // 中间件
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '..', 'public')));
+app.use(express.static(path.join(__dirname, '..', '..', 'public')));
 
 // 请求日志
 app.use((req, res, next) => {
@@ -266,7 +266,7 @@ app.get('/health', (req, res) => {
 
 // ==================== Startup ====================
 
-const dbPath = process.env.DB_PATH || path.join(__dirname, '..', 'georoute.db');
+const dbPath = process.env.DB_PATH || path.join(__dirname, '..', '..', 'georoute.db');
 if (!fs.existsSync(dbPath)) {
   console.error('\n❌ 错误：数据库文件不存在');
   console.error(`   路径: ${dbPath}`);
