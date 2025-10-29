@@ -42,9 +42,9 @@ const CHINA_PROVINCES = [
   { en: 'Taiwan', cn: '台湾省' },
 
   // 自治区
-  { en: 'Inner Mongolia', cn: '内蒙古自治区' },
+  { en: 'Nei Mongol', cn: '内蒙古自治区' },
   { en: 'Guangxi', cn: '广西壮族自治区' },
-  { en: 'Tibet', cn: '西藏自治区' },
+  { en: 'Xizang', cn: '西藏自治区' },
   { en: 'Ningxia', cn: '宁夏回族自治区' },
   { en: 'Xinjiang', cn: '新疆维吾尔自治区' },
 

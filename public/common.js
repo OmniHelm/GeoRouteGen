@@ -56,12 +56,12 @@ const ispMap = {
 // 地理分区映射 - 按中国行政区划划分
 const geoRegions = {
   '全部': null, // null 表示不过滤
-  '华北': ['Beijing', 'Tianjin', 'Hebei', 'Shanxi', 'Inner Mongolia'],
+  '华北': ['Beijing', 'Tianjin', 'Hebei', 'Shanxi', 'Nei Mongol'],
   '东北': ['Liaoning', 'Jilin', 'Heilongjiang'],
   '华东': ['Shanghai', 'Jiangsu', 'Zhejiang', 'Anhui', 'Fujian', 'Jiangxi', 'Shandong'],
   '华南': ['Guangdong', 'Guangxi', 'Hainan'],
   '华中': ['Henan', 'Hubei', 'Hunan'],
-  '西南': ['Chongqing', 'Sichuan', 'Guizhou', 'Yunnan', 'Tibet'],
+  '西南': ['Chongqing', 'Sichuan', 'Guizhou', 'Yunnan', 'Xizang'],
   '西北': ['Shaanxi', 'Gansu', 'Qinghai', 'Ningxia', 'Xinjiang'],
   '港澳台': ['Hong Kong', 'Macau', 'Taiwan']
 };
