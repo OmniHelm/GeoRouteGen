@@ -5,6 +5,8 @@ services:
       dockerfile: Dockerfile
     container_name: georoutegen
     restart: unless-stopped
+    # 确保容器用户与宿主机权限匹配
+    user: "1001:1001"
 
     ports:
       - "${PORT:-3000}:3000"

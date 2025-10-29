@@ -38,6 +38,9 @@ COPY --from=builder --chown=nodejs:nodejs /build/package.json ./
 # 复制静态文件
 COPY --chown=nodejs:nodejs public ./public
 
+# 创建数据目录并设置权限
+RUN mkdir -p /app/data && chown -R nodejs:nodejs /app/data
+
 # 切换到非 root 用户
 USER nodejs
 
