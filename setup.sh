@@ -22,6 +22,17 @@ NC='\033[0m' # No Color
 DATA_DIR="/var/lib/georoutegen"
 DB_FILE="$DATA_DIR/georoute.db"
 
+# 自动检测部署模式
+if [ -f "$DB_FILE" ]; then
+    DEPLOYMENT_MODE="update"
+    echo -e "${GREEN}检测到现有部署，进入更新模式${NC}"
+else
+    DEPLOYMENT_MODE="install"
+    echo "首次安装模式"
+fi
+
+echo ""
+
 # =============================================================================
 # 步骤 0: 检查并安装 Docker
 # =============================================================================
@@ -112,12 +123,26 @@ else
         echo -e "${GREEN}✓ Docker 安装成功${NC}"
         docker --version
 
-        # 将当前用户添加到 docker 组（可选，避免每次使用 sudo）
+        # 将当前用户添加到 docker 组
         echo ""
-        echo -e "${YELLOW}提示: 将当前用户添加到 docker 组...${NC}"
+        echo "正在将当前用户添加到 docker 组..."
         sudo usermod -aG docker $USER
-        echo "  完成后需要重新登录才能生效"
-        echo "  或者使用 'newgrp docker' 立即生效"
+
+        echo ""
+        echo "===================================="
+        echo -e "${YELLOW}⚠️  需要重新登录以生效权限${NC}"
+        echo "===================================="
+        echo ""
+        echo "Docker 用户组权限需要重新登录才能生效。"
+        echo ""
+        echo "请执行以下操作之一："
+        echo "  1. 退出当前 SSH 会话，重新登录"
+        echo "  2. 运行: su - $USER"
+        echo "  3. 运行: newgrp docker (然后重新执行本脚本)"
+        echo ""
+        echo "然后重新运行: ./setup.sh"
+        echo ""
+        exit 0
     else
         echo -e "${RED}✗ Docker 安装失败${NC}"
         exit 1
@@ -168,7 +193,11 @@ echo ""
 echo "💾 步骤 2/4: 准备数据库文件"
 echo "-----------------------------------"
 
-if [ -f "$DB_FILE" ]; then
+# 更新模式下跳过数据库准备
+if [ "$DEPLOYMENT_MODE" == "update" ]; then
+    echo -e "${GREEN}✓ 更新模式，跳过数据库准备${NC}"
+    echo "   数据库路径: $DB_FILE"
+elif [ -f "$DB_FILE" ]; then
     echo -e "${GREEN}✓ 数据库文件已存在，跳过复制${NC}"
     echo "   路径: $DB_FILE"
 else
@@ -185,8 +214,23 @@ else
         1)
             if [ -f "georoute.db" ]; then
                 echo "正在复制数据库文件..."
-                if sudo cp georoute.db "$DB_FILE"; then
-                    echo -e "${GREEN}✓ 数据库文件复制成功${NC}"
+                # 原子性复制：先复制到临时文件
+                if sudo cp georoute.db "$DB_FILE.tmp"; then
+                    # 验证文件大小（至少 100MB）
+                    FILE_SIZE=$(sudo stat -c%s "$DB_FILE.tmp" 2>/dev/null || sudo stat -f%z "$DB_FILE.tmp" 2>/dev/null)
+                    if [ "$FILE_SIZE" -lt 100000000 ]; then
+                        echo -e "${RED}✗ 数据库文件太小，可能复制失败${NC}"
+                        sudo rm -f "$DB_FILE.tmp"
+                        exit 1
+                    fi
+                    # 原子性移动到最终位置
+                    if sudo mv "$DB_FILE.tmp" "$DB_FILE"; then
+                        echo -e "${GREEN}✓ 数据库文件复制成功${NC}"
+                    else
+                        echo -e "${RED}✗ 移动文件失败${NC}"
+                        sudo rm -f "$DB_FILE.tmp"
+                        exit 1
+                    fi
                 else
                     echo -e "${RED}✗ 复制失败${NC}"
                     exit 1
@@ -201,8 +245,23 @@ else
             read -p "请输入数据库文件路径: " custom_db_path
             if [ -f "$custom_db_path" ]; then
                 echo "正在复制数据库文件..."
-                if sudo cp "$custom_db_path" "$DB_FILE"; then
-                    echo -e "${GREEN}✓ 数据库文件复制成功${NC}"
+                # 原子性复制：先复制到临时文件
+                if sudo cp "$custom_db_path" "$DB_FILE.tmp"; then
+                    # 验证文件大小（至少 100MB）
+                    FILE_SIZE=$(sudo stat -c%s "$DB_FILE.tmp" 2>/dev/null || sudo stat -f%z "$DB_FILE.tmp" 2>/dev/null)
+                    if [ "$FILE_SIZE" -lt 100000000 ]; then
+                        echo -e "${RED}✗ 数据库文件太小，可能复制失败${NC}"
+                        sudo rm -f "$DB_FILE.tmp"
+                        exit 1
+                    fi
+                    # 原子性移动到最终位置
+                    if sudo mv "$DB_FILE.tmp" "$DB_FILE"; then
+                        echo -e "${GREEN}✓ 数据库文件复制成功${NC}"
+                    else
+                        echo -e "${RED}✗ 移动文件失败${NC}"
+                        sudo rm -f "$DB_FILE.tmp"
+                        exit 1
+                    fi
                 else
                     echo -e "${RED}✗ 复制失败${NC}"
                     exit 1
@@ -256,6 +315,32 @@ else
     echo -e "${GREEN}✓ .env 文件已存在${NC}"
 fi
 
+# 强制检查默认密码
+if [ -f ".env" ]; then
+    CURRENT_PASSWORD=$(grep "^ADMIN_PASSWORD=" .env | cut -d '=' -f2 | tr -d '"' | tr -d "'")
+    if [ "$CURRENT_PASSWORD" == "admin123" ] || [ -z "$CURRENT_PASSWORD" ]; then
+        echo ""
+        echo "=========================================="
+        echo -e "${RED}❌ 安全错误：不允许使用默认密码！${NC}"
+        echo "=========================================="
+        echo ""
+        echo "检测到 .env 文件中使用了默认密码或密码为空。"
+        echo "出于安全考虑，必须修改密码后才能继续部署。"
+        echo ""
+        echo "请编辑 .env 文件，修改 ADMIN_PASSWORD 的值："
+        echo "  ${EDITOR:-nano} .env"
+        echo ""
+        echo "建议使用强密码："
+        echo "  - 至少 12 位字符"
+        echo "  - 包含大小写字母、数字和特殊字符"
+        echo ""
+        echo "修改完成后，重新运行本脚本。"
+        echo ""
+        exit 1
+    fi
+    echo -e "${GREEN}✓ 密码安全检查通过${NC}"
+fi
+
 echo ""
 
 # =============================================================================
@@ -264,6 +349,18 @@ echo ""
 
 echo "🚀 步骤 4/4: 构建并启动服务"
 echo "-----------------------------------"
+
+# 检测并停止已运行的容器
+if docker ps -a --format '{{.Names}}' | grep -q '^georoutegen$'; then
+    echo -e "${YELLOW}检测到已存在的容器，正在停止并移除...${NC}"
+    if $DOCKER_COMPOSE_CMD down; then
+        echo -e "${GREEN}✓ 旧容器已停止${NC}"
+    else
+        echo -e "${RED}✗ 停止容器失败${NC}"
+        exit 1
+    fi
+    echo ""
+fi
 
 echo "正在构建 Docker 镜像..."
 if $DOCKER_COMPOSE_CMD build; then
