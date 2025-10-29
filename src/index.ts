@@ -9,6 +9,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as crypto from 'crypto';
 import * as db from './db';
+import { ipToNumber, parseCIDR, numberToIP } from './utils/ip';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -160,6 +161,59 @@ app.post('/api/generate', (req, res) => {
     res.json({ files: result });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * IP归属地查询接口
+ * 输入IP地址，返回归属地信息（国家、省份、城市、运营商、经纬度）
+ */
+app.get('/api/lookup/:ip', (req, res) => {
+  try {
+    const ipNum = ipToNumber(req.params.ip);
+    const record = db.lookupIP(ipNum);
+
+    if (record) {
+      // 查询该地区所在的分组
+      const groups = db.findGroupsByRegion(record.province, record.city);
+
+      res.json({
+        ...record,
+        groups
+      });
+    } else {
+      res.status(404).json({ error: 'IP不在数据库中' });
+    }
+  } catch (error) {
+    res.status(400).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * CIDR块归属地查询接口
+ * 输入CIDR格式（如 36.133.48.0/20），返回该CIDR块起始IP的归属地
+ */
+app.get('/api/lookup-cidr/:cidr(*)', (req, res) => {
+  try {
+    const cidr = req.params.cidr;
+    const startIP = parseCIDR(cidr);
+    const record = db.lookupIP(startIP);
+
+    if (record) {
+      // 查询该地区所在的分组
+      const groups = db.findGroupsByRegion(record.province, record.city);
+
+      res.json({
+        cidr,
+        startIP: numberToIP(startIP),
+        ...record,
+        groups
+      });
+    } else {
+      res.status(404).json({ error: 'CIDR块不在数据库中' });
+    }
+  } catch (error) {
+    res.status(400).json({ error: (error as Error).message });
   }
 });
 

@@ -69,7 +69,66 @@ export interface GroupWithRegions extends RouteGroup {
   regions: Array<{ province: string; city: string }>;
 }
 
+export interface IPLookupResult {
+  country: string;
+  province: string;
+  city: string;
+  isp: string;
+  lngwgs: string;
+  latwgs: string;
+}
+
 // ==================== IP记录查询 ====================
+
+/**
+ * 根据IP地址查询归属地
+ */
+export function lookupIP(ipNum: number): IPLookupResult | null {
+  const record = getDB().prepare(`
+    SELECT country, province, city, isp, lngwgs, latwgs
+    FROM ip_records
+    WHERE ? BETWEEN minip AND maxip
+    LIMIT 1
+  `).get(ipNum) as IPLookupResult | undefined;
+
+  return record || null;
+}
+
+/**
+ * 查询某个地区在哪些分组中
+ * @param province - 省份英文名（如 "Guangdong"）
+ * @param city - 城市英文名（如 "Guangzhou City"）
+ * @returns 包含该地区的所有分组列表
+ */
+export function findGroupsByRegion(province: string, city: string): Array<{
+  groupId: string;
+  groupName: string;
+  origin: string;
+  isp: string;
+}> {
+  if (!province || !city) {
+    return [];
+  }
+
+  const results = getDB().prepare(`
+    SELECT
+      rg.id as groupId,
+      rg.name as groupName,
+      rg.origin,
+      rg.isp
+    FROM group_regions gr
+    JOIN route_groups rg ON gr.group_id = rg.id
+    WHERE gr.province = ? AND gr.city = ?
+    ORDER BY rg.origin, rg.name
+  `).all(province, city);
+
+  return results as Array<{
+    groupId: string;
+    groupName: string;
+    origin: string;
+    isp: string;
+  }>;
+}
 
 /**
  * 根据地区+ISP筛选IP段

@@ -163,6 +163,30 @@ export function isValidCIDR(cidr: string): boolean {
 }
 
 /**
+ * 解析CIDR，返回起始IP的数字形式
+ * @param cidr - CIDR字符串，如 "36.133.48.0/20"
+ * @returns 起始IP的数字表示
+ * @throws 如果CIDR格式无效
+ * @example parseCIDR("36.133.48.0/20") // 609648640
+ */
+export function parseCIDR(cidr: string): number {
+  const match = cidr.match(/^(\d+\.\d+\.\d+\.\d+)\/(\d+)$/);
+
+  if (!match) {
+    throw new Error(`无效的CIDR格式: ${cidr}`);
+  }
+
+  const [, ipStr, prefixStr] = match;
+  const prefix = parseInt(prefixStr, 10);
+
+  if (isNaN(prefix) || prefix < 0 || prefix > 32) {
+    throw new Error(`无效的前缀长度: ${prefixStr}`);
+  }
+
+  return ipToNumber(ipStr);
+}
+
+/**
  * 测试函数（开发时使用）
  */
 export function runTests() {

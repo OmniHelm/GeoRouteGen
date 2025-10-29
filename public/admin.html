@@ -61,6 +61,21 @@
       </button>
     </div>
 
+    <!-- IP归属地查询 -->
+    <div class="ip-lookup-section" style="margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;">
+      <h3 style="margin: 0 0 15px 0; font-size: 16px; color: #333;">IP归属地查询</h3>
+      <div style="display: flex; gap: 10px; align-items: flex-start;">
+        <input
+          type="text"
+          id="ipLookupInput"
+          placeholder="输入IP地址或CIDR（如 180.76.76.76 或 36.133.48.0/20）"
+          style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;"
+        />
+        <button id="ipLookupButton" class="btn btn-primary" style="padding: 10px 24px;">查询</button>
+      </div>
+      <div id="ipLookupResult" style="margin-top: 12px;"></div>
+    </div>
+
     <!-- 加载状态 -->
     <div id="loading" class="loading">
       <div class="spinner"></div>

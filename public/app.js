@@ -772,6 +772,125 @@ async function generateAll() {
   }
 }
 
+// ==================== IP归属地查询 ====================
+
+// IP归属地查询功能
+document.getElementById('ipLookupButton').addEventListener('click', async () => {
+  const input = document.getElementById('ipLookupInput');
+  const resultDiv = document.getElementById('ipLookupResult');
+  const value = input.value.trim();
+
+  if (!value) {
+    resultDiv.innerHTML = '<p style="color: #dc3545; margin: 0;">请输入IP地址或CIDR</p>';
+    return;
+  }
+
+  resultDiv.innerHTML = '<p style="margin: 0; color: #6c757d;">查询中...</p>';
+
+  try {
+    // 判断是否为CIDR格式
+    const isCIDR = value.includes('/');
+    const endpoint = isCIDR ? `/api/lookup-cidr/${encodeURIComponent(value)}` : `/api/lookup/${value}`;
+
+    const response = await fetch(endpoint);
+    const data = await response.json();
+
+    if (response.ok) {
+      const provinceCN = translateProvince(data.province);
+      const cityCN = translateCity(data.city);
+
+      // 构建简要信息（标题栏）
+      const summaryParts = [
+        escapeHtml(data.startIP || value),
+        data.country ? escapeHtml(data.country) : '',
+        provinceCN || '',
+        cityCN || ''
+      ].filter(p => p);
+      const summary = summaryParts.join(' · ');
+
+      // 构建分组信息HTML
+      let groupsHTML = '';
+      if (data.groups && data.groups.length > 0) {
+        const groupTags = data.groups.map(g => {
+          const ispLabel = g.isp ? ` - ${g.isp}` : ' - 所有运营商';
+          return `<span style="display: inline-block; margin: 2px 4px 2px 0; padding: 5px 12px; background: #e3f2fd; color: #1565c0; border-radius: 4px; font-size: 13px; font-weight: 500;">
+            ${escapeHtml(g.groupName)} (${g.origin}${ispLabel})
+          </span>`;
+        }).join('');
+
+        groupsHTML = `
+          <strong style="align-self: start; padding-top: 6px;">所在分组:</strong>
+          <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+            ${groupTags}
+          </div>`;
+      } else if (data.province && data.city) {
+        groupsHTML = `<strong>所在分组:</strong> <span style="color: #9e9e9e; font-size: 13px;">未分配到任何分组</span>`;
+      }
+
+      resultDiv.innerHTML = `
+        <div style="background: white; border-radius: 6px; border: 1px solid #dee2e6; overflow: hidden;">
+          <!-- 标题栏（可点击） -->
+          <div id="ipLookupHeader"
+               style="padding: 12px 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none; transition: background-color 0.2s;"
+               onmouseover="this.style.backgroundColor='#f8f9fa'"
+               onmouseout="this.style.backgroundColor='white'">
+            <div style="flex: 1; font-size: 14px; font-weight: 500; color: #333;">
+              ${summary}
+            </div>
+            <svg id="ipLookupArrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.3s; color: #6c757d;">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </div>
+
+          <!-- 详细信息（可折叠） -->
+          <div id="ipLookupDetails" style="max-height: 500px; overflow: hidden; transition: max-height 0.3s ease-out;">
+            <div style="padding: 15px; border-top: 1px solid #e9ecef; background: #fafbfc;">
+              <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; font-size: 14px;">
+                ${isCIDR ? `<strong>CIDR块:</strong> <span>${escapeHtml(value)}</span>` : ''}
+                <strong>IP地址:</strong> <span>${escapeHtml(data.startIP || value)}</span>
+                <strong>国家:</strong> <span>${escapeHtml(data.country)}</span>
+                <strong>省份:</strong> <span>${provinceCN} <span style="color: #6c757d;">(${escapeHtml(data.province)})</span></span>
+                <strong>城市:</strong> <span>${cityCN} <span style="color: #6c757d;">(${escapeHtml(data.city)})</span></span>
+                <strong>运营商:</strong> <span>${escapeHtml(data.isp)}</span>
+                ${groupsHTML}
+                <strong>经纬度:</strong> <span>${escapeHtml(data.lngwgs)}, ${escapeHtml(data.latwgs)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // 添加折叠/展开功能
+      const header = document.getElementById('ipLookupHeader');
+      const details = document.getElementById('ipLookupDetails');
+      const arrow = document.getElementById('ipLookupArrow');
+      let isExpanded = true;
+
+      header.addEventListener('click', () => {
+        isExpanded = !isExpanded;
+        if (isExpanded) {
+          details.style.maxHeight = '500px';
+          arrow.style.transform = 'rotate(0deg)';
+        } else {
+          details.style.maxHeight = '0';
+          arrow.style.transform = 'rotate(-90deg)';
+        }
+      });
+    } else {
+      resultDiv.innerHTML = `<p style="color: #dc3545; margin: 0;">${escapeHtml(data.error)}</p>`;
+    }
+  } catch (error) {
+    resultDiv.innerHTML = `<p style="color: #dc3545; margin: 0;">查询失败: ${escapeHtml(error.message)}</p>`;
+  }
+});
+
+// 支持回车键查询
+document.getElementById('ipLookupInput').addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') {
+    document.getElementById('ipLookupButton').click();
+  }
+});
+
 // ==================== Utilities ====================
 
 function escapeHtml(text) {
